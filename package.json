@@ -156,7 +156,7 @@
     "eslint-config-prettier": "^8.2.0",
     "eslint-import-resolver-typescript": "^3.5.2",
     "eslint-plugin-import": "^2.26.0",
-    "glob": "^7.1.6",
+    "glob": "^9.1.2",
     "husky": "^5.1.2",
     "lint-staged": "^13.0.4",
     "mocha": "^10.1.0",
