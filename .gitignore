@@ -6,6 +6,7 @@ dist
 *.vsix
 **.DS_Store
 binaries/*
+!binaries/downloadBinaries.sh
 
 registration_key
 auth
@@ -17,3 +18,5 @@ sig
 
 **/assistant-cache
 **/assistant-binaries
+package.json.back
+package.json.onprem

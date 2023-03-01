@@ -32,12 +32,25 @@ export enum Capability {
   SAVE_SNIPPETS = "save_snippets",
   BETA_CAPABILITY = "beta",
   FIRST_SUGGESTION_DECORATION = "first_suggestion_hint_enabled",
+  DEBOUNCE_VALUE_300 = "debounce_value_300",
+  DEBOUNCE_VALUE_600 = "debounce_value_600",
+  DEBOUNCE_VALUE_900 = "debounce_value_900",
+  DEBOUNCE_VALUE_1200 = "debounce_value_1200",
+  DEBOUNCE_VALUE_1500 = "debounce_value_1500",
+  TEST_GEN = "vscode_test_gen",
 }
 
 let enabledCapabilities: Record<string, boolean> = {};
 
 export function isCapabilityEnabled(capability: Capability): boolean {
   return enabledCapabilities[capability];
+}
+export function isAnyCapabilityEnabled(...capabilities: Capability[]): boolean {
+  return capabilities.some((capability) => enabledCapabilities[capability]);
+}
+
+export function getCachedCapabilities(): string[] {
+  return Object.keys(enabledCapabilities);
 }
 
 export function fetchCapabilitiesOnFocus(): Promise<void> {

@@ -4,13 +4,13 @@ import fetchBinaryPath from "./binaryFetcher";
 import { BinaryProcessRun, runProcess } from "./runProcess";
 import { getCurrentVersion } from "../preRelease/versions";
 import { getTabnineExtensionContext } from "../globals/tabnineExtensionContext";
+import { ONPREM } from "../onPrem";
 
 export default async function runBinary(
   additionalArgs: string[] = [],
   inheritStdio = false
 ): Promise<BinaryProcessRun> {
   const command = await fetchBinaryPath();
-
   const context = getTabnineExtensionContext();
   const args: string[] = [
     "--client=vscode",
@@ -18,8 +18,12 @@ export default async function runBinary(
     tabnineExtensionProperties.logFilePath
       ? `--log-file-path=${tabnineExtensionProperties.logFilePath}`
       : null,
+    ONPREM ? "--no_bootstrap" : null,
     tabnineExtensionProperties.logLevel
       ? `--log-level=${tabnineExtensionProperties.logLevel}`
+      : null,
+    ONPREM && tabnineExtensionProperties.cloudHost
+      ? `--cloud2_url=${tabnineExtensionProperties.cloudHost}`
       : null,
     "--client-metadata",
     `clientVersion=${tabnineExtensionProperties.vscodeVersion}`,
@@ -45,6 +49,9 @@ export default async function runBinary(
     `vscode-beta-channel-enabled=${tabnineExtensionProperties.isExtensionBetaChannelEnabled}`,
     `vscode-status-customization=${
       tabnineExtensionProperties.statusBarColorCustomizations ?? "unknown"
+    }`,
+    `vscode-inline-api-enabled=${
+      tabnineExtensionProperties.isVscodeInlineAPIEnabled ?? "unknown"
     }`,
     ...additionalArgs,
   ].filter((i): i is string => i !== null);

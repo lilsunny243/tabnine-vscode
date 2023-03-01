@@ -3,21 +3,29 @@ name: Continues Integration
 on: [push]
 
 jobs:
+  verify-package-metadata:
+    name: Verify package metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Verify that the plugin metadta is correct
+        run: 
   buildAndLint:
     name: Build & Lint
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [12.x, 14.x]
     steps:
         - name: Checkout
           uses: actions/checkout@v2
-        - name: Use Node.js ${{ matrix.node-version }}
-          uses: actions/setup-node@v1
+        - name: Use Node.js 16.10
+          uses: actions/setup-node@v3
           with:
-            node-version: ${{ matrix.node-version }}
+            node-version: '16.10'
         - name: Install
           run: yarn install --frozen-lockfile --ignore-optional
+        - name: Verify that the plugin metadta is correct
+          run: yarn verify-package-metadata
         - name: Prettier validate
           run: yarn prettier:check
         - name: Lint
@@ -34,10 +42,10 @@ jobs:
     steps:
         - name: Checkout
           uses: actions/checkout@v2
-        - name: Use Node.js 12.x
-          uses: actions/setup-node@v1
+        - name: Use Node.js 16.10
+          uses: actions/setup-node@v3
           with:
-            node-version: 12.x
+            node-version: '16.10'
         - name: Install
           run: yarn install --frozen-lockfile --ignore-optional
         - run: xvfb-run -a yarn test

@@ -18,20 +18,6 @@ export enum CompletionKind {
   Snippet = "Snippet",
 }
 
-export type ResultEntry = {
-  new_prefix: string;
-  old_suffix: string;
-  new_suffix: string;
-
-  kind?: vscode.CompletionItemKind;
-  origin?: CompletionOrigin;
-  detail?: string;
-  documentation?: string | MarkdownStringSpec;
-  deprecated?: boolean;
-  completion_kind?: CompletionKind;
-  is_cached?: boolean;
-};
-
 enum UserIntent {
   Comment,
   Block,
@@ -47,14 +33,28 @@ export type SnippetIntentMetadata = {
   triggered_after_character?: string;
 };
 
-export type SnippetContext = {
+export interface SnippetContext extends Record<string, unknown> {
+  snippet_id?: string;
   user_intent: UserIntent;
-  stop_reason: string;
-  generated_tokens: number;
   intent_metadata?: SnippetIntentMetadata;
-  response_time_ms?: number;
+}
+
+export type CompletionMetadata = {
+  kind?: vscode.CompletionItemKind;
+  origin?: CompletionOrigin;
+  detail?: string;
+  documentation?: string | MarkdownStringSpec;
+  deprecated?: boolean;
+  completion_kind?: CompletionKind;
   is_cached?: boolean;
-  context_len?: number;
+  snippet_context?: SnippetContext;
+};
+
+export type ResultEntry = {
+  new_prefix: string;
+  old_suffix: string;
+  new_suffix: string;
+  completion_metadata?: CompletionMetadata;
 };
 
 export type AutocompleteResult = {
@@ -62,7 +62,6 @@ export type AutocompleteResult = {
   results: ResultEntry[];
   user_message: string[];
   is_locked: boolean;
-  snippet_context?: SnippetContext;
 };
 
 export function initBinary(): Promise<void> {

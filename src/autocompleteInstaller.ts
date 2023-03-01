@@ -1,4 +1,4 @@
-import { languages, Disposable, ExtensionContext, ExtensionMode } from "vscode";
+import { languages, Disposable, ExtensionContext } from "vscode";
 import getSuggestionMode, {
   SuggestionsMode,
 } from "./capabilities/getSuggestionMode";
@@ -11,6 +11,7 @@ import registerInlineHandlers from "./inlineSuggestions/registerHandlers";
 
 import provideCompletionItems from "./provideCompletionItems";
 import { COMPLETION_TRIGGERS } from "./globals/consts";
+import { ONPREM } from "./onPrem";
 
 let subscriptions: Disposable[] = [];
 
@@ -21,14 +22,13 @@ export default async function installAutocomplete(
     dispose: () => uninstallAutocomplete(),
   });
 
-  const testMode = context.extensionMode === ExtensionMode.Test;
-  let installOptions = InstallOptions.get(testMode);
+  let installOptions = InstallOptions.get();
 
   await reinstallAutocomplete(installOptions);
 
   context.subscriptions.push(
     onDidRefreshCapabilities(() => {
-      const newInstallOptions = InstallOptions.get(testMode);
+      const newInstallOptions = InstallOptions.get();
 
       if (!newInstallOptions.equals(installOptions)) {
         void reinstallAutocomplete(newInstallOptions);
@@ -87,11 +87,14 @@ class InstallOptions {
     );
   }
 
-  public static get(testMode: boolean) {
+  public static get() {
+    if (ONPREM) {
+      return new InstallOptions(true, true, false);
+    }
     return new InstallOptions(
-      isInlineEnabled() || testMode,
-      isSnippetSuggestionsEnabled() || testMode,
-      isAutoCompleteEnabled() || testMode
+      isInlineEnabled(),
+      isSnippetSuggestionsEnabled(),
+      isAutoCompleteEnabled()
     );
   }
 }

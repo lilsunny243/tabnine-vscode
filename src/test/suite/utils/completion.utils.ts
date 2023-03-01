@@ -10,8 +10,10 @@ import { SelectionStateRequest } from "../../../binary/requests/setState";
 import { CompletionArguments } from "../../../CompletionArguments";
 import { sleep } from "../../../utils/utils";
 import { TAB_OVERRIDE_COMMAND } from "../../../globals/consts";
+import TabnineInlineCompletionItem from "../../../inlineSuggestions/tabnineInlineCompletionItem";
+import provideInlineCompletionItems from "../../../provideInlineCompletionItems";
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
+// eslint-disable-next-line @typescript-eslint/no-var-requires,@typescript-eslint/no-unsafe-argument
 chaiUse(require("chai-shallow-deep-equal"));
 
 export type AutocompleteRequest = BinaryGenericRequest<{
@@ -47,26 +49,27 @@ export function selectionCommandArgs(
     completions: result.results,
     position,
     limited: result.is_locked,
-    snippetContext: result.snippet_context,
     oldPrefix: result.old_prefix,
   };
 }
 export function mockAutocomplete(
   requestResponseItems: Item[],
-  result: AutocompleteResult
+  ...results: AutocompleteResult[]
 ): void {
-  requestResponseItems.push({
-    isQualified: (request) => {
-      const completionRequest = JSON.parse(request) as AutocompleteRequest;
+  results.forEach((result) => {
+    requestResponseItems.push({
+      isQualified: (request) => {
+        const completionRequest = JSON.parse(request) as AutocompleteRequest;
 
-      return (
-        !!completionRequest?.request?.Autocomplete &&
-        completionRequest?.request?.Autocomplete.before.endsWith(
-          result.old_prefix
-        )
-      );
-    },
-    result,
+        return (
+          !!completionRequest?.request?.Autocomplete &&
+          completionRequest?.request?.Autocomplete.before.endsWith(
+            result.old_prefix
+          )
+        );
+      },
+      result,
+    });
   });
 }
 
@@ -79,7 +82,7 @@ export async function triggerInline(): Promise<unknown> {
   return vscode.commands.executeCommand("editor.action.inlineSuggest.trigger");
 }
 
-export async function makeAChange(text: string): Promise<boolean | undefined> {
+export async function makeAChange(text: string): Promise<unknown> {
   return vscode.window.activeTextEditor?.insertSnippet(
     new vscode.SnippetString(text),
     vscode.window.activeTextEditor?.selection.active
@@ -91,6 +94,9 @@ export async function moveToActivePosition(): Promise<unknown> {
     to: "wrappedLineEnd",
   });
 }
+export async function moveToStartOfLinePosition(): Promise<unknown> {
+  return vscode.commands.executeCommand("cursorLineStart");
+}
 export async function emulationUserInteraction(): Promise<void> {
   await sleep(400);
 }
@@ -99,7 +105,7 @@ export function assertTextIsCommitted(expected: string): void {
   expect(vscode.window.activeTextEditor?.document.getText()).to.equal(expected);
 }
 
-export async function triggerSelectionAppetence(): Promise<void> {
+export async function triggerSelectionAcceptance(): Promise<void> {
   await emulationUserInteraction();
 
   await vscode.commands.executeCommand(TAB_OVERRIDE_COMMAND);
@@ -107,19 +113,40 @@ export async function triggerSelectionAppetence(): Promise<void> {
   await emulationUserInteraction();
 }
 
-export async function triggerPopupSuggestion(): Promise<void> {
-  await emulationUserInteraction();
-  await vscode.commands.executeCommand("editor.action.triggerSuggest");
+export async function getInlineCompletions(
+  editor: vscode.TextEditor
+): Promise<
+  vscode.InlineCompletionList<TabnineInlineCompletionItem> | undefined
+> {
+  return provideInlineCompletionItems(
+    editor.document,
+    editor.selection.active,
+    {
+      triggerKind: vscode.InlineCompletionTriggerKind.Automatic,
+      selectedCompletionInfo: undefined,
+    },
+    new vscode.CancellationTokenSource().token
+  );
 }
 
 export async function openADocWith(
-  content: string
-): Promise<{ makeAChange: (change: string) => void }> {
-  await openDocument("javascript", content);
+  content: string,
+  language = "javascript"
+): Promise<vscode.TextEditor> {
+  const editor = await openDocument(language, content);
   await isProcessReadyForTest();
   await moveToActivePosition();
+  return editor;
+}
 
-  return {
-    makeAChange,
-  };
+async function moveLeftBy(value: number): Promise<void> {
+  await vscode.commands.executeCommand("cursorMove", {
+    to: "left",
+    by: "character",
+    value,
+  });
+}
+export function moveCursorToBeAfter(prefix: string): Promise<void> {
+  const currentText = vscode.window.activeTextEditor?.document.getText() || "";
+  return moveLeftBy(currentText.replace(prefix, "").length);
 }
