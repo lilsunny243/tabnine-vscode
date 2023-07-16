@@ -1,18 +1,36 @@
-import { Position, Range, TextDocument } from "vscode";
-import { autocomplete, AutocompleteResult } from "./binary/requests/requests";
+import { CancellationToken, Position, Range, TextDocument } from "vscode";
+import {
+  autocomplete,
+  AutocompleteParams,
+  AutocompleteResult,
+} from "./binary/requests/requests";
 import getTabSize from "./binary/requests/tabSize";
 import { Capability, isCapabilityEnabled } from "./capabilities/capabilities";
-import { CHAR_LIMIT, MAX_NUM_RESULTS } from "./globals/consts";
+import {
+  CHAR_LIMIT,
+  INLINE_REQUEST_TIMEOUT,
+  MAX_NUM_RESULTS,
+} from "./globals/consts";
 import languages from "./globals/languages";
+import { getSDKPath } from "./languages";
 
-export type CompletionType = "normal" | "snippet";
-
-export default async function runCompletion(
-  document: TextDocument,
-  position: Position,
-  timeout?: number,
-  currentSuggestionText = ""
-): Promise<AutocompleteResult | null | undefined> {
+export default async function runCompletion({
+  document,
+  position,
+  timeout = undefined,
+  currentSuggestionText = "",
+  retry,
+}: {
+  document: TextDocument;
+  position: Position;
+  timeout?: number | undefined;
+  currentSuggestionText?: string;
+  retry?: {
+    cancellationToken?: CancellationToken;
+    interval?: number;
+    timeout?: number;
+  };
+}): Promise<AutocompleteResult | null | undefined> {
   const offset = document.offsetAt(position);
   const beforeStartOffset = Math.max(0, offset - CHAR_LIMIT);
   const afterEndOffset = offset + CHAR_LIMIT;
@@ -31,11 +49,69 @@ export default async function runCompletion(
     line: position.line,
     character: position.character,
     indentation_size: getTabSize(),
+    sdk_path: getSDKPath(document.languageId),
   };
 
-  const result = await autocomplete(requestData, timeout);
+  const isEmptyLine = document.lineAt(position.line).text.trim().length === 0;
 
-  return result;
+  const result = await autocomplete(
+    requestData,
+    isEmptyLine ? INLINE_REQUEST_TIMEOUT : timeout
+  );
+
+  if (result?.results.length || !retry?.cancellationToken) {
+    return result;
+  }
+
+  return handleRetries(requestData, retry);
+}
+
+function handleRetries(
+  requestData: AutocompleteParams,
+  {
+    cancellationToken,
+    interval = 200,
+    timeout = 1000,
+  }: {
+    cancellationToken?: CancellationToken;
+    interval?: number;
+    timeout?: number;
+  }
+): Promise<AutocompleteResult | null | undefined> | null | undefined {
+  if (cancellationToken?.isCancellationRequested) {
+    return null;
+  }
+  return new Promise((resolve, reject) => {
+    let timeoutId: NodeJS.Timeout | undefined;
+    let lastResult: AutocompleteResult | undefined;
+    const intervalId = setInterval(() => {
+      void autocomplete({ ...requestData, cached_only: true })
+        .then((result) => {
+          if (result?.results.length) {
+            clearInterval(intervalId);
+            clearTimeout(timeoutId as NodeJS.Timeout);
+            lastResult = result;
+            resolve(result);
+          }
+        })
+        .catch((error) => {
+          clearInterval(intervalId);
+          clearTimeout(timeoutId as NodeJS.Timeout);
+          reject(error);
+        });
+    }, interval);
+
+    timeoutId = setTimeout(() => {
+      clearInterval(intervalId);
+      resolve(lastResult);
+    }, timeout);
+
+    cancellationToken?.onCancellationRequested(() => {
+      clearInterval(intervalId);
+      clearTimeout(timeoutId as NodeJS.Timeout);
+      resolve(null);
+    });
+  });
 }
 
 function getMaxResults(): number {
@@ -50,7 +126,7 @@ function getMaxResults(): number {
   return MAX_NUM_RESULTS;
 }
 
-export type KnownLanguageType = keyof typeof languages;
+type KnownLanguageType = keyof typeof languages;
 
 export function getLanguageFileExtension(
   languageId: string
@@ -58,7 +134,7 @@ export function getLanguageFileExtension(
   return languages[languageId as KnownLanguageType];
 }
 
-export function getFileNameWithExtension(document: TextDocument): string {
+function getFileNameWithExtension(document: TextDocument): string {
   const { languageId, fileName } = document;
   if (!document.isUntitled) {
     return fileName;

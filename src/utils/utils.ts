@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import * as url from "url";
 
 export function withPolling(
   callback: (clear: () => void) => void | Promise<void>,
@@ -42,6 +43,17 @@ export async function assertFirstTimeReceived(
 
 export function sleep(time: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, time));
+}
+
+export function rejectOnTimeout<T>(
+  promise: Promise<T>,
+  time: number
+): Promise<unknown> {
+  return Promise.race([sleep(time).then(() => Promise.reject()), promise]);
+}
+
+export function waitForRejection<T>(promise: Promise<T>, time: number) {
+  return Promise.race([sleep(time), promise.then(() => Promise.reject())]);
 }
 
 // eslint-disable-next-line
@@ -100,4 +112,10 @@ export function hrtimeToMs(hrtime: [number, number]): number {
   const seconds = hrtime[0];
   const nanoseconds = hrtime[1];
   return seconds * 1000 + nanoseconds / 1000000;
+}
+
+export function host(targetUrl: string): string | undefined {
+  const { host: targetHost } = url.parse(targetUrl);
+
+  return targetHost ?? undefined;
 }

@@ -1,34 +1,25 @@
 import { commands, ExtensionContext } from "vscode";
 import { StateType, STATUS_BAR_FIRST_TIME_CLICKED } from "./globals/consts";
 import { Capability, isCapabilityEnabled } from "./capabilities/capabilities";
-import handleSaveSnippet, {
-  enableSaveSnippetContext,
-} from "./saveSnippetHandler";
-import openHub from "./hub/openHub";
-import { ONPREM } from "./onPrem";
+import openHub, { openHubExternal } from "./hub/openHub";
 
-export const CONFIG_COMMAND = "TabNine::config";
+const CONFIG_COMMAND = "TabNine::config";
+const CONFIG_EXTERNAL_COMMAND = "TabNine::configExternal";
 export const STATUS_BAR_COMMAND = "TabNine.statusBar";
-export const SAVE_SNIPPET_COMMAND = "Tabnine.saveSnippet";
 
-export async function registerCommands(
-  context: ExtensionContext
-): Promise<void> {
-  if (!ONPREM) {
-    context.subscriptions.push(
-      commands.registerCommand(CONFIG_COMMAND, openHub(StateType.PALLETTE))
-    );
-    context.subscriptions.push(
-      commands.registerCommand(STATUS_BAR_COMMAND, handleStatusBar(context))
-    );
-  }
-
-  if (isCapabilityEnabled(Capability.SAVE_SNIPPETS)) {
-    await enableSaveSnippetContext();
-    context.subscriptions.push(
-      commands.registerCommand(SAVE_SNIPPET_COMMAND, handleSaveSnippet)
-    );
-  }
+export function registerCommands(context: ExtensionContext): void {
+  context.subscriptions.push(
+    commands.registerCommand(CONFIG_COMMAND, openHub(StateType.PALLETTE))
+  );
+  context.subscriptions.push(
+    commands.registerCommand(
+      CONFIG_EXTERNAL_COMMAND,
+      openHubExternal(StateType.PALLETTE)
+    )
+  );
+  context.subscriptions.push(
+    commands.registerCommand(STATUS_BAR_COMMAND, handleStatusBar(context))
+  );
 }
 
 function handleStatusBar(context: ExtensionContext) {

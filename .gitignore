@@ -1,6 +1,7 @@
 **/node_modules
 **/out
 dist
+chat/
 
 .vscode-test/
 *.vsix
@@ -20,3 +21,5 @@ sig
 **/assistant-binaries
 package.json.back
 package.json.onprem
+clean.sh
+.vscode/launch.json

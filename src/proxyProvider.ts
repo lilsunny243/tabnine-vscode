@@ -21,7 +21,6 @@ export default function getHttpsProxyAgent(): ProxyAgentSettings {
   const rejectUnauthorized = workspace
     .getConfiguration()
     .get("http.proxyStrictSSL", true);
-
   const parsedPort: number | undefined = proxyUrl.port
     ? parseInt(proxyUrl.port, 10)
     : undefined;
@@ -40,7 +39,7 @@ export default function getHttpsProxyAgent(): ProxyAgentSettings {
   };
 }
 
-function getProxySettings(): string | undefined {
+export function getProxySettings(): string | undefined {
   let proxy: string | undefined = workspace
     .getConfiguration()
     .get<string>("http.proxy");

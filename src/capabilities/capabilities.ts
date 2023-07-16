@@ -1,7 +1,12 @@
 import * as vscode from "vscode";
 import { Disposable, EventEmitter } from "vscode";
-import { getCapabilities, tabNineProcess } from "../binary/requests/requests";
+import {
+  ExperimentSource,
+  getCapabilities,
+  tabNineProcess,
+} from "../binary/requests/requests";
 import { getTabnineExtensionContext } from "../globals/tabnineExtensionContext";
+import { Logger } from "../utils/logger";
 
 const CAPABILITIES_REFRESH_INTERVAL = 10_000; // 10 secs
 const TEST_CAPABILITIES_REFRESH_INTERVAL = 5_000; // 5 secs
@@ -29,7 +34,6 @@ export enum Capability {
   NOTIFICATIONS_WIDGET = "vscode.notifications-widget",
   TABNINE_TODAY_WIDGET = "vscode.tabnine-today-widget",
   CODE_REVIEW = "vscode.code-review",
-  SAVE_SNIPPETS = "save_snippets",
   BETA_CAPABILITY = "beta",
   FIRST_SUGGESTION_DECORATION = "first_suggestion_hint_enabled",
   DEBOUNCE_VALUE_300 = "debounce_value_300",
@@ -38,30 +42,42 @@ export enum Capability {
   DEBOUNCE_VALUE_1200 = "debounce_value_1200",
   DEBOUNCE_VALUE_1500 = "debounce_value_1500",
   TEST_GEN = "vscode_test_gen",
+  FORCE_REGISTRATION = "plugin.feature.force_registration",
+  TABNINE_CHAT = "plugin.feature.tabnine_chat",
 }
 
-let enabledCapabilities: Record<string, boolean> = {};
+let enabledCapabilities: Record<string, boolean> | null = null;
+let isReady = false;
+
+export function isCapabilitiesReady() {
+  return isReady;
+}
+
+export function isEnabled(capability: Capability): boolean | undefined {
+  return enabledCapabilities?.[capability];
+}
 
 export function isCapabilityEnabled(capability: Capability): boolean {
-  return enabledCapabilities[capability];
+  return !!enabledCapabilities?.[capability];
 }
+
 export function isAnyCapabilityEnabled(...capabilities: Capability[]): boolean {
-  return capabilities.some((capability) => enabledCapabilities[capability]);
+  return capabilities.some((capability) => enabledCapabilities?.[capability]);
 }
 
 export function getCachedCapabilities(): string[] {
-  return Object.keys(enabledCapabilities);
+  return Object.keys(enabledCapabilities ?? {});
 }
 
 export function fetchCapabilitiesOnFocus(): Promise<void> {
   return new Promise((resolve) => {
     if (vscode.window.state.focused) {
-      console.log("capabilities resolved immediately");
+      Logger.debug("capabilities resolved immediately");
       resolveCapabilities(resolve);
     } else {
       const disposable = vscode.window.onDidChangeWindowState(({ focused }) => {
         disposable.dispose();
-        console.log(`capabilities resolved on focus ${focused}`);
+        Logger.debug(`capabilities resolved on focus ${focused}`);
         resolveCapabilities(resolve);
       });
     }
@@ -84,10 +100,21 @@ export function onDidRefreshCapabilities(listener: () => void): Disposable {
 async function refreshCapabilities(): Promise<void> {
   const capabilities = await getCapabilities();
 
-  enabledCapabilities = {};
+  const theseCapabilties: Record<string, boolean> = {};
   capabilities?.enabled_features.forEach((feature) => {
-    enabledCapabilities[feature] = true;
+    theseCapabilties[feature] = true;
   });
+
+  if (
+    !!capabilities &&
+    (!capabilities.experiment_source ||
+      capabilities.experiment_source === ExperimentSource.API ||
+      capabilities.experiment_source === ExperimentSource.APIErrorResponse)
+  ) {
+    isReady = true;
+  }
+
+  enabledCapabilities = theseCapabilties;
 
   capabilitiesRefreshed.fire(undefined);
 }

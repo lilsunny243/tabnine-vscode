@@ -7,3 +7,5 @@ out
 coverage
 .eslintrc.js
 src/onPrem.ts
+verify-package-metadata.js
+chat

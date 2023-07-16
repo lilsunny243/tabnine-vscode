@@ -10,17 +10,17 @@ export enum DownloadProgress {
   VERIFYING_CHECKSUM = "VerifyingChecksum",
 }
 
-export enum OSArchTarget {
+enum OSArchTarget {
   // Partial, has more options.
   APPLE_64 = "x86_64-apple-darwin",
 }
 
-export enum Mode {
+enum Mode {
   // Partial, has more options.
   RELEASE = "Release",
 }
 
-export enum EmuMode {
+enum EmuMode {
   // Partial, has more options.
   NATIVE = "Native",
 }
@@ -81,4 +81,6 @@ export type State = {
   enabled_features?: string[];
   installation_time?: string;
   access_token?: string;
+  cloud_connection_health_status?: string;
+  user_avatar_url?: string;
 };

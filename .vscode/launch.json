@@ -9,11 +9,35 @@
       "runtimeExecutable": "code",
       "args": [
         "--extensionDevelopmentPath=${workspaceRoot}",
+        "--logPluginHostCommunication",
+      ],
+
+      "sourceMaps": true,
+      "preLaunchTask": "npm: build"
+    },
+    {
+      "name": "Launch Enterprise Extension",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "code",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceRoot}",
+        "--logPluginHostCommunication",
+        "--disable-extensions"
+      ],
+      "sourceMaps": true,
+      "preLaunchTask": "npm: build:enterprise"
+    },
+    {
+      "name": "Launch Extension with vscode from source",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${workspaceFolder:vscode}/scripts/code.sh",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceRoot}",
         "--logPluginHostCommunication"
       ],
-      "stopOnEntry": false,
       "sourceMaps": true,
-      "outDir": "${workspaceRoot}/out/src",
       "preLaunchTask": "npm: build"
     },
     {
@@ -25,9 +49,7 @@
         "--extensionDevelopmentPath=${workspaceRoot}",
         "--logPluginHostCommunication"
       ],
-      "stopOnEntry": false,
       "sourceMaps": true,
-      "outDir": "${workspaceRoot}/out/src",
       "preLaunchTask": "npm: build"
     },{
       "name": "Extension Tests",
@@ -39,7 +61,7 @@
         "--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
       ],
       "outFiles": ["${workspaceFolder}/out/test/**/*.js"],
-      "preLaunchTask": "npm: test:prepare"
+      "preLaunchTask": "npm: pretest"
     }
   ]
 }

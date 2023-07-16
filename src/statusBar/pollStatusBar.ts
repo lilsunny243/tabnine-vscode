@@ -3,22 +3,28 @@ import { getStatus } from "../binary/requests/statusBar";
 import { BINARY_STATUS_BAR_FIRST_MESSAGE_POLLING_INTERVAL } from "../globals/consts";
 import {
   onStartServiceLevel,
-  pollServiceLevel,
   resetDefaultStatus,
+  setServiceLevel,
 } from "./statusBar";
 import handleStatus, {
   disposeStatusBarCommand,
 } from "./statusBarActionHandler";
-import { ONPREM } from "../onPrem";
+import { statePoller } from "../state/statePoller";
 
 let statusPollingInterval: NodeJS.Timeout | null = null;
 
-export default function pollStatuses(context: vscode.ExtensionContext): void {
+export default function pollStatuses(
+  context: vscode.ExtensionContext
+): vscode.Disposable {
+  const statePollerDisposable = statePoller.event((change) => {
+    setServiceLevel(change.currentState?.service_level);
+  });
+  context.subscriptions.push(statePollerDisposable);
   statusPollingInterval = setInterval(() => {
     void doPollStatus(context);
-    void pollServiceLevel();
   }, BINARY_STATUS_BAR_FIRST_MESSAGE_POLLING_INTERVAL);
   void onStartServiceLevel();
+  return new vscode.Disposable(disposeStatus);
 }
 
 function cancelStatusPolling(): void {
@@ -30,19 +36,16 @@ function cancelStatusPolling(): void {
 export async function doPollStatus(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  if (ONPREM) {
-    return;
-  }
   const status = await getStatus();
 
   if (!status?.message) {
     return;
   }
 
-  void handleStatus(context, status);
+  context.subscriptions.push(handleStatus(status));
 }
 
-export function disposeStatus(): void {
+function disposeStatus(): void {
   disposeStatusBarCommand();
   cancelStatusPolling();
   resetDefaultStatus();

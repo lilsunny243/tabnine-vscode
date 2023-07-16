@@ -3,7 +3,9 @@ import { spawn, SpawnOptions } from "child_process";
 import { createInterface, ReadLine, ReadLineOptions } from "readline";
 import * as vscode from "vscode";
 import { getTabnineExtensionContext } from "../globals/tabnineExtensionContext";
-import { EventName, report } from "../reports/reporter";
+import { report } from "../reports/reporter";
+import EventName from "../reports/EventName";
+import { Logger } from "../utils/logger";
 
 export type BinaryProcessRun = {
   proc: child_process.ChildProcess;
@@ -22,11 +24,8 @@ export function runProcess(
     return require("./mockedRunProcess").default() as BinaryProcessRun;
   }
   report(EventName.START_BINARY);
-  console.log(
-    "spawning binary with command: ",
-    command,
-    " args: ",
-    args?.join(" ")
+  Logger.info(
+    `spawning binary with command: ${command} args: ${args?.join(" ") || ""}`
   );
   const proc = args ? spawn(command, args, options) : spawn(command, options);
 

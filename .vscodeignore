@@ -1,4 +1,7 @@
 **
+!chat/
+!chat/*
+!chat/**
 !out/
 !out/extension.js
 !small_logo.png

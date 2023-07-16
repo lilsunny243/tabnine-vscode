@@ -1,19 +1,24 @@
-import { ExtensionContext, StatusBarAlignment, window } from "vscode";
+import {
+  Disposable,
+  ExtensionContext,
+  StatusBarAlignment,
+  window,
+} from "vscode";
 import { getState } from "../binary/requests/requests";
 import { STATUS_BAR_COMMAND } from "../commandsHandler";
 import { FULL_BRAND_REPRESENTATION, STATUS_NAME } from "../globals/consts";
 import StatusBarData from "./StatusBarData";
 import StatusBarPromotionItem from "./StatusBarPromotionItem";
-import { ONPREM } from "../onPrem";
+import { ServiceLevel } from "../binary/state";
 
 const SPINNER = "$(sync~spin)";
 
 let statusBarData: StatusBarData | undefined;
 let promotion: StatusBarPromotionItem | undefined;
 
-export function registerStatusBar(context: ExtensionContext): void {
+export function registerStatusBar(context: ExtensionContext): Disposable {
   if (statusBarData) {
-    return;
+    return statusBarData;
   }
 
   const statusBar = window.createStatusBarItem(StatusBarAlignment.Left, -1);
@@ -21,9 +26,7 @@ export function registerStatusBar(context: ExtensionContext): void {
     window.createStatusBarItem(StatusBarAlignment.Left, -1)
   );
   statusBarData = new StatusBarData(statusBar, context);
-  if (!ONPREM) {
-    statusBar.command = STATUS_BAR_COMMAND;
-  }
+  statusBar.command = STATUS_BAR_COMMAND;
 
   statusBar.show();
   try {
@@ -34,26 +37,17 @@ export function registerStatusBar(context: ExtensionContext): void {
   }
 
   setLoadingStatus("Starting...");
-  context.subscriptions.push(statusBar);
-  if (!ONPREM) {
-    context.subscriptions.push(promotion.item);
-  }
-}
-
-export async function pollServiceLevel(): Promise<void> {
-  if (!statusBarData) {
-    return;
-  }
-  if (ONPREM) {
-    return;
-  }
-
-  const state = await getState();
-  statusBarData.serviceLevel = state?.service_level;
+  return Disposable.from(statusBarData, promotion);
 }
 
 export function promotionTextIs(text: string): boolean {
   return promotion?.item?.text === text;
+}
+
+export function setServiceLevel(level: ServiceLevel | undefined): void {
+  if (statusBarData) {
+    statusBarData.serviceLevel = level;
+  }
 }
 
 export async function onStartServiceLevel(): Promise<void> {
@@ -63,6 +57,7 @@ export async function onStartServiceLevel(): Promise<void> {
 
   const state = await getState();
   statusBarData.serviceLevel = state?.service_level;
+  statusBarData.isLoggedIn = state?.is_logged_in;
 }
 
 export function setDefaultStatus(): void {
