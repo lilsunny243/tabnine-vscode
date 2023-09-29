@@ -18,7 +18,8 @@ export function runProcess(
   options: SpawnOptions = {}
 ): BinaryProcessRun {
   if (
-    getTabnineExtensionContext()?.extensionMode === vscode.ExtensionMode.Test
+    getTabnineExtensionContext()?.extensionMode === vscode.ExtensionMode.Test &&
+    process.env.IS_EVAL_MODE !== "true"
   ) {
     // eslint-disable-next-line
     return require("./mockedRunProcess").default() as BinaryProcessRun;
@@ -28,6 +29,10 @@ export function runProcess(
     `spawning binary with command: ${command} args: ${args?.join(" ") || ""}`
   );
   const proc = args ? spawn(command, args, options) : spawn(command, options);
+
+  proc.stderr?.on("data", (data: string) => {
+    Logger.process(data);
+  });
 
   const input = proc.stdout;
   const readLine = createInterface({

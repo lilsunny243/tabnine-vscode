@@ -5,6 +5,8 @@ import axios from "axios";
 import { ExtensionContext, WebviewView, WebviewViewProvider } from "vscode";
 import { chatEventRegistry } from "./chatEventRegistry";
 import { initChatApi } from "./ChatApi";
+import { Logger } from "../utils/logger";
+import { fireEvent } from "../binary/requests/requests";
 
 type View = "history" | "settings";
 
@@ -32,6 +34,11 @@ export default class ChatViewProvider implements WebviewViewProvider {
       return;
     }
 
+    this.chatWebviewView?.onDidChangeVisibility(() => {
+      this.onVisible("tabnine-chat-visible");
+    });
+    this.onVisible("tabnine-chat-inited");
+
     this.chatWebview.onDidReceiveMessage(
       async (message: RequestMessage) => {
         try {
@@ -44,7 +51,7 @@ export default class ChatViewProvider implements WebviewViewProvider {
             payload,
           });
         } catch (e) {
-          console.error("failed to handle event. message:", message);
+          Logger.error(`failed to handle event. message: ${message.data}`);
           void this.chatWebview?.postMessage({
             id: message.id,
             error: (e as Error).message,
@@ -54,6 +61,13 @@ export default class ChatViewProvider implements WebviewViewProvider {
       undefined,
       this.context.subscriptions
     );
+  }
+
+  private onVisible(eventName: string) {
+    void fireEvent({
+      name: eventName,
+      isVisible: !!this.chatWebviewView?.visible,
+    });
   }
 
   handleMessageSubmitted(userInput: string) {
@@ -71,9 +85,7 @@ export default class ChatViewProvider implements WebviewViewProvider {
   }
 
   focusWebviewInput() {
-    void vscode.commands.executeCommand(
-      "workbench.view.extension.tabnine-access"
-    );
+    void vscode.commands.executeCommand("workbench.view.extension.tabnine");
     void this.chatWebviewView?.show(true);
     void this.chatWebview?.postMessage({
       command: "focus-input",
@@ -101,6 +113,12 @@ export default class ChatViewProvider implements WebviewViewProvider {
     });
   }
 
+  clearAllConversations() {
+    void this.chatWebview?.postMessage({
+      command: "clear-all-conversations",
+    });
+  }
+
   submitFeedback() {
     void this.chatWebview?.postMessage({
       command: "submit-feedback",
@@ -125,19 +143,13 @@ export default class ChatViewProvider implements WebviewViewProvider {
   }
 
   setWebviewHtml(webviewView: WebviewView): void {
-    const reactAppPath = path.join(this.extensionPath, "chat", "index.html");
-    let html: string = fs.readFileSync(reactAppPath, "utf8");
-    html = html.replace(/(href|src)="\/static\//g, (_, p1) => {
-      // eslint-disable-next-line
-      const attribute = p1;
-      const uri = vscode.Uri.file(
-        path.join(this.extensionPath, "chat", "static")
-      );
-      const webviewUri = webviewView.webview.asWebviewUri(uri).toString();
-      return `${attribute}="${webviewUri}/`;
-    });
+    const reactAppPath = path.join(
+      process.env.TABNINE_CHAT_DIR ?? this.extensionPath,
+      "chat",
+      "index.html"
+    );
     // eslint-disable-next-line no-param-reassign
-    webviewView.webview.html = html;
+    webviewView.webview.html = fs.readFileSync(reactAppPath, "utf8");
   }
 }
 

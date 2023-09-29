@@ -3,19 +3,25 @@ import { ColorThemeKind } from "vscode";
 import { getState } from "../binary/requests/requests";
 import { sendEvent } from "../binary/requests/sendEvent";
 import { chatEventRegistry } from "./chatEventRegistry";
-import {
-  EditorContextResponse,
-  getEditorContext,
-} from "./handlers/getEditorContextHandler";
 import { insertTextAtCursor } from "./handlers/insertAtCursor";
 import { Capability, isCapabilityEnabled } from "../capabilities/capabilities";
 import { resolveSymbols } from "./handlers/resolveSymbols";
 import { peekDefinition } from "./handlers/peekDefinition";
-import resolveWorkspaceCommands, {
-  ResolveWorkspaceCommandsRequest,
-  WorkspaceData,
-} from "./handlers/resolveWorkspaceCommandsHandler";
 import { ServiceLevel } from "../binary/state";
+import { GET_CHAT_STATE_COMMAND } from "../globals/consts";
+import {
+  BasicContext,
+  getBasicContext,
+} from "./handlers/context/basicContextHandler";
+import {
+  EnrichingContextRequestPayload,
+  EnrichingContextResponsePayload,
+  getEnrichingContext,
+} from "./handlers/context/enrichingContextHandler";
+import {
+  SelectedCodeResponsePayload,
+  getSelectedCode,
+} from "./handlers/context/editorContext";
 
 type GetUserResponse = {
   token: string;
@@ -66,10 +72,24 @@ export function initChatApi(
   context: vscode.ExtensionContext,
   serverUrl?: string
 ) {
+  if (process.env.IS_EVAL_MODE === "true") {
+    context.subscriptions.push(
+      vscode.commands.registerCommand(
+        GET_CHAT_STATE_COMMAND,
+        () =>
+          context.globalState.get(CHAT_CONVERSATIONS_KEY, {
+            conversations: {},
+          }) as ChatState
+      )
+    );
+  }
+
   chatEventRegistry.registerEvent<void, InitResponse>("init", async () =>
     Promise.resolve({
       ide: "vscode",
-      isDarkTheme: vscode.window.activeColorTheme.kind === ColorThemeKind.Dark,
+      isDarkTheme: [ColorThemeKind.HighContrast, ColorThemeKind.Dark].includes(
+        vscode.window.activeColorTheme.kind
+      ),
       isTelemetryEnabled: isCapabilityEnabled(Capability.ALPHA_CAPABILITY),
       serverUrl,
     })
@@ -104,29 +124,34 @@ export function initChatApi(
     }
   );
 
-  chatEventRegistry.registerEvent<void, EditorContextResponse>(
-    "get_editor_context",
-    getEditorContext
+  chatEventRegistry.registerEvent<void, BasicContext>(
+    "get_basic_context",
+    getBasicContext
   );
 
   chatEventRegistry.registerEvent<
-    ResolveWorkspaceCommandsRequest,
-    WorkspaceData | undefined
-  >("resolve_workspace_commands", resolveWorkspaceCommands);
+    EnrichingContextRequestPayload,
+    EnrichingContextResponsePayload
+  >("get_enriching_context", getEnrichingContext);
+
+  chatEventRegistry.registerEvent<void, SelectedCodeResponsePayload>(
+    "get_selected_code",
+    getSelectedCode
+  );
 
   chatEventRegistry.registerEvent<InserCode, void>(
-    "insert-at-cursor",
+    "insert_at_cursor",
     insertTextAtCursor
   );
   chatEventRegistry.registerEvent<
     { symbol: string },
     vscode.SymbolInformation[] | undefined
-  >("resolve-symbols", resolveSymbols);
+  >("resolve_symbols", resolveSymbols);
 
   chatEventRegistry.registerEvent<
     { symbols: vscode.SymbolInformation[] },
     void
-  >("peek-definition", peekDefinition);
+  >("peek_definition", peekDefinition);
 
   chatEventRegistry.registerEvent<ChatConversation, void>(
     "update_chat_conversation",

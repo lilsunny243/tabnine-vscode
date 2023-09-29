@@ -34,7 +34,6 @@ import { setTabnineExtensionContext } from "./globals/tabnineExtensionContext";
 import { updatePersistedAlphaVersion } from "./preRelease/versions";
 import isCloudEnv from "./cloudEnvs/isCloudEnv";
 import setupCloudState from "./cloudEnvs/setupCloudState";
-import registerTreeView from "./treeView/registerTreeView";
 import { closeAssistant } from "./assistant/requests/request";
 import initAssistant from "./assistant/AssistantClient";
 import TabnineAuthenticationProvider from "./authentication/TabnineAuthenticationProvider";
@@ -53,11 +52,15 @@ import { forceRegistrationIfNeeded } from "./registration/forceRegistration";
 import { installationState } from "./events/installationStateChangedEmitter";
 import { statePoller } from "./state/statePoller";
 import { Logger } from "./utils/logger";
+import { callForLogin } from "./authentication/authentication.api";
+import { emptyStateWelcomeView } from "./tabnineChatWidget/webviews/emptyStateChatWelcomeView";
+import { emptyStateAuthenticateView } from "./tabnineChatWidget/webviews/emptyStateAuthenticateView";
+import { activeTextEditorState } from "./activeTextEditorState";
 
 export async function activate(
   context: vscode.ExtensionContext
 ): Promise<void> {
-  context.subscriptions.push(Logger);
+  Logger.init(context);
   if (isCloudEnv) await setupCloudState(context);
 
   void initStartup(context);
@@ -65,6 +68,7 @@ export async function activate(
   context.subscriptions.push(handleUninstall(() => uponUninstall(context)));
   context.subscriptions.push(installationState);
   context.subscriptions.push(statePoller);
+  context.subscriptions.push(activeTextEditorState);
   registerCodeReview();
 
   context.subscriptions.push(registerStatusBar(context));
@@ -117,6 +121,13 @@ async function backgroundInit(context: vscode.ExtensionContext) {
       clearSessionPreference: true,
     });
   }
+  vscode.commands.registerCommand("tabnine.authenticate", () => {
+    void callForLogin();
+  });
+  context.subscriptions.push(
+    emptyStateWelcomeView(context),
+    emptyStateAuthenticateView(context)
+  );
   registerTestGenCodeLens(context);
 
   if (context.extensionMode !== vscode.ExtensionMode.Test) {
@@ -131,8 +142,12 @@ async function backgroundInit(context: vscode.ExtensionContext) {
     });
   }
 
-  registerTabnineChatWidgetWebview(context);
-  registerTreeView(context);
+  registerTabnineChatWidgetWebview(
+    context,
+    context.extensionMode === vscode.ExtensionMode.Test
+      ? process.env.CHAT_SERVER_URL
+      : undefined
+  );
   pollNotifications(context);
   pollStatuses(context);
   setDefaultStatus();
