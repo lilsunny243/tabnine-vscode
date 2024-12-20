@@ -179,7 +179,7 @@
 		"extract-zip": "^2.0.1",
 		"https-proxy-agent": "^5.0.0",
 		"semver": "^7.3.2",
-		"systeminformation": "^5.21.9",
+		"systeminformation": "^5.23.8",
 		"tmp": "^0.2.1",
 		"vscode-extension-telemetry": "^0.1.7"
 	},
